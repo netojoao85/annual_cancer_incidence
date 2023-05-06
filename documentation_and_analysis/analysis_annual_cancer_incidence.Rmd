@@ -1,0 +1,204 @@
+---
+title: "Annual Cancer Incidence"
+output:
+  html_document:
+    df_print: paged
+---
+
+## **Introduction**
+
+Annual data of new cancer incidence cases in Scotland. Data is presented by Cancer Network Region and Health Board, within Scotland and Network levels of reporting, the incidence figures are further broken down by age group and sex.
+
+The cancer sites reported on include: bladder, bone and connective tissue, brain and central nervous system, breast colorectal, female genital organs, head and neck, hodgkin lymphoma, kidney, leukaemias, liver, lung and mesothelioma, male genital organs, multiple myeloma, non-hodgkin lymphoma, oesophageal, pancreatic, skin, stomach.
+
+In order to help inform the planning for provision of cancer treatment services in NHS Borders, we would like to gain better understanding of the incidence of cancer in NHS Borders.
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(janitor)
+library(shiny)
+library(plotly)
+```
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+incidence_scotland_level <- read_csv("../01_raw_data/incidence_at_scotland_level.csv") %>%
+  clean_names()
+
+incidence_health_board <- read_csv("../01_raw_data/incidence_by_health_board.csv") %>% 
+  clean_names()
+
+five_year_summary_incidence_health_board <- read_csv("../01_raw_data/5_year_summary_of_incidence_by_health_board.csv") %>% 
+  clean_names()
+
+health_board <- read_csv("../01_raw_data/health_board_2014_health_board_2019.csv") %>% 
+  clean_names()
+```
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+incidence_health_board_clean <- incidence_health_board %>% 
+   filter(sex %in% c("Male", "Female")) %>% 
+  left_join(x = .,
+            y = health_board,
+            by = "hb", suffix = c("", "suffix_hb")) %>% 
+  relocate(hb_name, .after = "hb") %>% 
+  filter(sex %in% c("Male", "Female"), !cancer_site == "All cancer types")
+```
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+names(five_year_summary_incidence_health_board) <- 
+  str_remove(names(five_year_summary_incidence_health_board), 'incidence_rate_age')
+  
+names(five_year_summary_incidence_health_board) <-   
+  str_replace(string = names((five_year_summary_incidence_health_board)),
+              pattern = "to", 
+              replacement =  " to ")
+```
+
+# The geral view of number of cancer incidence per gender
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+incidence_health_board_clean %>% 
+  group_by(year, sex) %>% 
+  summarise(nr_incidences = sum(incidences_all_ages)) %>% 
+  ggplot(aes(x = year, y = nr_incidences, color = sex)) +
+  geom_line(size = 1) +
+  labs(title = "Total values of incidences", 
+       subtitle = "from 1996 to 2020",
+       x = NULL, 
+       y = NULL) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        legend.title = element_blank()) +
+  scale_x_continuous(breaks = seq(min(incidence_health_board$year),
+                                  max(incidence_health_board$year), 
+                                  2)) +
+  scale_color_manual(values = c("Female" = "pink2",
+                               "Male" = "steelblue"))
+```
+
+Since 1996 there were a significant increase of the number of incidences of cancers for both gender (male and female). The number of man incidences has been increased more than in women and that could be related with the life expectancy. Women lives more than men, and with the increase of life expectancy the men started to live more and get older ages and this could be related with the more increase of incidences in men.
+
+From 2018 to 2020 a sharply decrease happened for the both genders. This fact should be investigate for further conclusions or really the number of cancers fell down.
+
+# Cancer incidence per crude rate by age group for the last 5 years
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+five_year_summary_incidence_health_board %>% 
+  left_join(x = .,
+            y = health_board,
+            by = "hb", suffix = c("", "suffix_hb")) %>% 
+  relocate(hb_name, .after = "hb") %>% 
+  pivot_longer(cols      = c("_under5": "85and_over"),
+               names_to  = "incidences_age",
+               values_to = "number_incidences_age") %>% 
+  filter(sex %in% c("Male", "Female"),
+         !cancer_site == "All cancer types",
+         !is.na(hb_name)) %>% 
+  group_by(hb_name, incidences_age) %>% 
+  summarise(count = (number_incidences_age)) %>% 
+  mutate(incidences_age = case_when(
+    incidences_age == "_under5" ~ "under 5 years",
+    incidences_age == "85and_over" ~ "over 85 years", 
+    TRUE ~ incidences_age
+    )) %>% 
+  ggplot() +
+  (aes(x = hb_name, 
+       y = count, 
+       fill = factor(incidences_age, levels = c("under 5 years", 
+                                                "5 to 9",
+                                                "10 to 14",
+                                                "15 to 19",
+                                                "20 to 24",
+                                                "25 to 29",
+                                                "30 to 34",
+                                                "35 to 39",
+                                                "40 to 44",
+                                                "45 to 49",
+                                                "50 to 54",
+                                                "55 to 59",
+                                                "60 to 64",
+                                                "65 to 69",
+                                                "70 to 74",
+                                                "75 to 79",
+                                                "80 to 84",
+                                                "over 85 years")))) +
+  geom_col() +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        legend.title = element_blank()) +
+  coord_flip() +
+  labs(title    = "Per 100,000 person-years at risk", 
+       subtitle = "from 2016 to 2020",
+       x = NULL,
+       y = NULL)
+
+       
+```
+
+In all health boards, how much older the people becomes, the chance to have a cancer is higher compared with younger people. This conclusion could be relevant in the way that hospital services can be more prepared having conditions adapted for people who beyond the of cancer ilness can have common limitation in older people have. Prepare and training staffs for senior care.
+
+# Crude rate per health board by gender
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+incidence_health_board_clean %>% 
+  group_by(hb_name, sex) %>% 
+  summarise(nr_crude_rate = round(sum(crude_rate, digits = 0))) %>% 
+  ggplot(aes(x = hb_name, y = nr_crude_rate, fill = sex)) +
+  geom_col(position = "dodge") +
+  labs(title = "Per 100,000 person-years at risk", 
+       subtitle = "from 1996 to 2020",
+       x = NULL, 
+       y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.position = "bottom", 
+        legend.title = element_blank(),
+        strip.text       = element_text(face = "bold")
+          ) +
+  coord_flip() +
+  scale_fill_manual(values = c("Female" = "pink1",
+                               "Male" = "lightblue")) +
+  geom_text(aes(label = nr_crude_rate), 
+            position = position_stack(vjust = 0.5), 
+            size = 3, 
+            hjust = -0.1) +
+  facet_wrap(~sex)
+  
+```
+
+There are not a significant differences between the cases in both genders.
+
+# Top 3 cancer incident per crude-rate healt board
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+incidence_health_board_clean %>% 
+  group_by(hb_name, cancer_site) %>% 
+  summarise(nr_incidences_per_hb = sum(incidences_all_ages)) %>% 
+  slice_max(nr_incidences_per_hb, n = 3) %>% 
+  ggplot() + 
+  aes(x = hb_name, y = nr_incidences_per_hb, fill = cancer_site) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.title = element_blank(),
+        axis.text.x  = element_text(angle = 90, hjust = 1),
+  ) +
+  labs(title    = "",
+       subtitle = "",
+       x = NULL,
+       y = NULL)
+```
+
+The top 2 cancers in all of 14 health boards studied are related with skin cancer. In all health boards, the Non-melanoma skin cancer leads, while Basal Cell carcinoma of the skin cancer is the second most common, it is the second cancer it most incidence in 12 of 14 health boards.
+
+This insight could be relevant to take measures to prevent skin cancers, like making more campaigns for the people have more conscious about their behavior like using sun protector or not expose at sun in hours of higher temperatures. Could be relevant too to invest more money in researches if there are some genetic factor that make people from the country more vulnerable to skin cancers.
+
+# **Conclusion**
+
+In general there are not significant differences of cancer incidences across all health boards studied, and this way we could conclude that is not relevant the health board when we look for the cancer incidences once that the results are quite similar between them.
