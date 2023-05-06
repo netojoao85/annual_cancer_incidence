@@ -2,9 +2,8 @@
 
 <h2>
  Content:
-</h2>
-##
-<img src= "https://github.com/netojoao85/annual_cancer_incidence/blob/main/images/incidence_per_gender.png" />
+</h2>     
+<img src= "https://github.com/netojoao85/annual_cancer_incidence/blob/main/images/incidence_per_gender.png"  />
 
 
 ##
